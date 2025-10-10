@@ -6,7 +6,7 @@
   • **Data Splitting:**  
     • **Training Set:** 2013-02-08 to 2017-02-07  
     • **Testing Set:** 2017-02-08 to 2018-02-07  
-  • Uses simple returns
+  • Uses simple returns  
   • Computes annualized mean and covariance of returns using daily returns × 252  
   • Implements Markowitz Optimization for **fixed target returns** portfolio  
 
