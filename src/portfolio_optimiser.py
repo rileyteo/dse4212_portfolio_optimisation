@@ -1,0 +1,108 @@
+from .imports import *
+
+class PortfolioOptimizer:
+    """
+    Portfolio weight optimization methods
+    """
+    
+    def __init__(self, returns):
+        """
+        Args:
+            returns: Historical returns for covariance estimation
+        """
+        self.returns = returns
+        self.n_stocks = returns.shape[1]
+        
+        # Estimate covariance matrix with shrinkage
+        lw = LedoitWolf()
+        self.cov_matrix = lw.fit(returns.values).covariance_
+        
+    def equal_weight(self) -> np.ndarray:
+        """
+        Equal-weighted portfolio: 1/N for each stock
+        """
+        return np.ones(self.n_stocks) / self.n_stocks
+    
+    def minimum_variance(self, max_position: float = 0.05) -> np.ndarray:
+        """
+        Minimum variance portfolio
+        
+        Args:
+            max_position: Maximum weight per stock (e.g., 0.05 = 5%)
+        
+        Returns:
+            Optimal weights (n_stocks,)
+        """
+        def objective(w):
+            return 0.5 * w @ self.cov_matrix @ w
+        
+        # Constraints: weights sum to 1
+        constraints = [
+            {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}
+        ]
+        
+        # Bounds: long-only, max position size
+        bounds = [(0, max_position) for _ in range(self.n_stocks)]
+        
+        # Initial guess: equal weight
+        w0 = np.ones(self.n_stocks) / self.n_stocks
+        
+        # Optimize
+        result = minimize(
+            objective,
+            w0,
+            method='SLSQP',
+            bounds=bounds,
+            constraints=constraints,
+            options={'maxiter': 1000, 'ftol': 1e-9}
+        )
+        
+        if not result.success:
+            print(f"Warning: Optimization did not converge. Using equal weights.")
+            return w0
+        
+        return result.x
+    
+    def mean_variance(self, predicted_returns: np.ndarray, 
+                     risk_aversion: float = 1.0,
+                     max_position: float = 0.05) -> np.ndarray:
+        """
+        Mean-variance optimization
+        
+        max: w^T * mu - (lambda/2) * w^T * Sigma * w
+        
+        Args:
+            predicted_returns: Expected returns (n_stocks,)
+            risk_aversion: Risk aversion parameter (higher = more conservative)
+            max_position: Maximum weight per stock
+        
+        Returns:
+            Optimal weights (n_stocks,)
+        """
+        def objective(w):
+            portfolio_return = w @ predicted_returns
+            portfolio_variance = w @ self.cov_matrix @ w
+            return -(portfolio_return - (risk_aversion / 2) * portfolio_variance)
+        
+        constraints = [
+            {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}
+        ]
+        
+        bounds = [(0, max_position) for _ in range(self.n_stocks)]
+        
+        w0 = np.ones(self.n_stocks) / self.n_stocks
+        
+        result = minimize(
+            objective,
+            w0,
+            method='SLSQP',
+            bounds=bounds,
+            constraints=constraints,
+            options={'maxiter': 1000, 'ftol': 1e-9}
+        )
+        
+        if not result.success:
+            print(f"Warning: Optimization did not converge. Using equal weights.")
+            return w0
+        
+        return result.x
