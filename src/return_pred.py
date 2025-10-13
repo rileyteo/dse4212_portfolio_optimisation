@@ -43,3 +43,17 @@ class ReturnPredictor:
             Array of zeros (n_stocks,)
         """
         return np.zeros(self.n_stocks)
+    
+    def predict_ml(self, model, features):
+        """
+        Predict returns using a machine learning model
+        
+        Args:
+            model: A trained ML model with a predict method
+            features: Feature matrix for prediction (n_samples, n_features)
+        
+        Returns:
+            Array of predicted returns (n_samples,)
+        """
+        predicted_returns = model.predict(features)
+        return predicted_returns
