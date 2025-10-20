@@ -57,3 +57,5 @@ class ReturnPredictor:
         """
         predicted_returns = model.predict(features)
         return predicted_returns
+
+

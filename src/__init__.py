@@ -5,6 +5,7 @@ from .evaluation import *
 from .portfolio_optimiser import *
 from .return_pred import *
 from .feature_engineer import *
+from .ML_return_pred import *
 
 #to load the env folder
 load_dotenv()

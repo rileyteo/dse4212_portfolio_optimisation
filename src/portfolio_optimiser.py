@@ -16,14 +16,21 @@ class PortfolioOptimizer:
         # Estimate covariance matrix with shrinkage
         lw = LedoitWolf()
         self.cov_matrix = lw.fit(returns.values).covariance_
+
+    @staticmethod
+    def estimate_covariance(returns):
+
+        lw = LedoitWolf()
+        cov_matrix = lw.fit(returns.values).covariance_
+        return cov_matrix
         
-    def equal_weight(self) -> np.ndarray:
+    def equal_weight(self):
         """
         Equal-weighted portfolio: 1/N for each stock
         """
         return np.ones(self.n_stocks) / self.n_stocks
     
-    def minimum_variance(self, max_position: float = 0.05) -> np.ndarray:
+    def minimum_variance(self, max_position: float = 0.05):
         """
         Minimum variance portfolio
         
@@ -33,6 +40,7 @@ class PortfolioOptimizer:
         Returns:
             Optimal weights (n_stocks,)
         """
+        self.cov_matrix = self.estimate_covariance(self.returns)
         def objective(w):
             return 0.5 * w @ self.cov_matrix @ w
         
@@ -79,6 +87,7 @@ class PortfolioOptimizer:
         Returns:
             Optimal weights (n_stocks,)
         """
+        self.cov_matrix = self.estimate_covariance(self.returns)
         def objective(w):
             portfolio_return = w @ predicted_returns
             portfolio_variance = w @ self.cov_matrix @ w
@@ -106,3 +115,18 @@ class PortfolioOptimizer:
             return w0
         
         return result.x
+    
+    def load_pretrained_weights(self, filepath: str) -> np.ndarray:
+        """
+        Load pre-trained weights from a file
+        
+        Args:
+            filepath: Path to the file containing weights (e.g., .npy file)
+        
+        Returns:
+            Weights array (n_stocks,)
+        """
+        weights = np.load(filepath)
+        if weights.shape[0] != self.n_stocks:
+            raise ValueError(f"Loaded weights shape {weights.shape} does not match number of stocks {self.n_stocks}.")
+        return weights / np.sum(weights)  # Normalize to sum to 1
