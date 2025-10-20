@@ -17,11 +17,18 @@ class PortfolioOptimizer:
         lw = LedoitWolf()
         self.cov_matrix = lw.fit(returns.values).covariance_
 
-    @staticmethod
-    def estimate_covariance(returns):
-
+    def estimate_covariance(self, returns):
+        """
+        Estimate covariance matrix using Ledoit-Wolf shrinkage
+        
+        Args:
+            returns: Historical returns (n_samples, n_stocks)
+        
+        Returns:
+            Covariance matrix (n_stocks, n_stocks)
+        """
         lw = LedoitWolf()
-        cov_matrix = lw.fit(returns.values).covariance_
+        cov_matrix = lw.fit(returns).covariance_
         return cov_matrix
         
     def equal_weight(self):
