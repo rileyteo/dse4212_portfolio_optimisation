@@ -92,9 +92,12 @@ class FeatureEngineer:
             date_features = date_features.set_index('ticker')
             all_features[date] = date_features
             if save_path:
-                with open(save_path+str(date.date())+".pkl", 'wb') as f:
-                    pickle.dump(date_features, f)     
-        
+                if not date_features.isna().values.any():
+                    with open(save_path+str(date.date())+".pkl", 'wb') as f:
+                        pickle.dump(date_features, f)  
+                else:
+                    print(date)   
+            
         # Combine all dates
         features_df = pd.concat(all_features, ignore_index=True)
         

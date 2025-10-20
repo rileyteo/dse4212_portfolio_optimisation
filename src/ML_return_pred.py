@@ -31,13 +31,12 @@ class MLReturnPredictor:
         
         X_list = []
         y_list = []
-        
         for feature_file in feature_files:
             # Extract date from filename
             feature_date = pd.to_datetime(feature_file.replace(".pkl", ""))
             
             # Load features
-            with open("src/data"+feature_file, 'rb') as f:
+            with open("src/data/"+feature_file, 'rb') as f:
                 features_df = pickle.load(f)
             
             # Get target returns (1-day ahead)
@@ -53,7 +52,7 @@ class MLReturnPredictor:
             
             # Store
             X_list.append(features_df.loc[common_stocks].values)
-            y_list.append(target_returns.loc[common_stocks].values)
+            y_list.append(target_returns.loc[common_stocks].values)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
         
         X_train = np.vstack(X_list)
         y_train = np.concatenate(y_list)
@@ -96,7 +95,7 @@ class MLReturnPredictor:
         print(f"  Prediction spread: {y_pred.std():.4%}")
     
     def predict_all_test_returns(self,
-                                 feature_files) -> pd.DataFrame:
+                                 feature_files):
         """
         Predict returns for all test dates
         
@@ -116,7 +115,7 @@ class MLReturnPredictor:
             pred_date = pd.to_datetime(date_str)
             
             # Load and predict
-            with open(feature_file, 'rb') as f:
+            with open("src/data/"+feature_file, 'rb') as f:
                 features_df = pickle.load(f)
             
             predictions = self.model.predict(features_df.values)

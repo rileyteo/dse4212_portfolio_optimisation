@@ -20,6 +20,7 @@ returns = np.log(close).diff().dropna()
 fred = Fred(api_key = os.getenv("API_KEY"))
 risk_free_rate = fred.get_series_latest_release('DGS3MO')/100/252
 risk_free_rate = risk_free_rate.reindex(returns.index, method='ffill')
+risk_free_rate.fillna(method='ffill', inplace=True)
 
 
 with open('processed_data.pkl', 'wb') as f:
