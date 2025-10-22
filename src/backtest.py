@@ -87,13 +87,7 @@ class WalkForwardBacktest:
                     # Weights after market movement (before rebalancing)
                     # If yesterday's weights were w, and returns were r,
                     # today's pre-rebalance weights are w * (1+r) / sum(w * (1+r))
-                    if i > 0:
-                        yesterday_returns = self.test_returns.iloc[i-1].values
-                        weights_after_drift = current_weights * (1 + yesterday_returns)
-                    else:
-                        weights_after_drift = current_weights
-                    
-                    turnover = np.abs(target_weights*weights_after_drift.sum() - weights_after_drift).sum()
+                    turnover = np.abs(target_weights-current_weights).sum()
                     
                     # Apply transaction costs
                     transaction_cost = turnover * (transaction_cost_bps / 10000)
@@ -168,30 +162,20 @@ class WalkForwardBacktest:
         for i, date in enumerate(self.test_returns.index):
             
             # Check if we should rebalance
-            if date in self.rebalance_dates:
+            if date in preloaded_weights.index:
                 
-                # Get preloaded weights for this date
-                if date not in preloaded_weights.index:
-                    print(f"Warning: No weights for {date}, skipping rebalance")
-                    continue
+                # # Get preloaded weights for this date
+                # if date not in preloaded_weights.index:
+                #     print(f"Warning: No weights for {date}, skipping rebalance")
+                #     continue
                 
                 target_weights = preloaded_weights.loc[date].values
-                
-                # # Validate weights
-                # assert abs(target_weights.sum() - 1.0) < 0.01, f"Weights don't sum to 1 at {date}: {target_weights.sum()}"
-                
+                         
                 # Calculate turnover if not first rebalance
                 if current_weights is not None:
-                    # Weights after market drift
-                    if i > 0:
-                        yesterday_returns = self.test_returns.iloc[i-1].values
-                        position_values = current_weights * (1 + yesterday_returns)
-                        weights_after_drift = position_values / position_values.sum()
-                    else:
-                        weights_after_drift = current_weights
                     
                     # Turnover
-                    turnover = np.abs(target_weights*weights_after_drift.sum() - weights_after_drift).sum()
+                    turnover = np.abs(target_weights-current_weights).sum()
                     
                     # Apply transaction costs
                     transaction_cost = turnover * (transaction_cost_bps / 10000)
