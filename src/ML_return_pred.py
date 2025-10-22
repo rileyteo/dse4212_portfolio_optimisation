@@ -6,7 +6,7 @@ class MLReturnPredictor:
     def __init__(self, model_type: str = 'ridge', **model_params):
         """
         Args:
-            model_type: 'ridge' or 'random_forest'
+            model_type: 'ridge' or 'random_forest' or 'Lasso' or 'ENet'
             **model_params: Model hyperparameters
         """
         self.model_type = model_type
@@ -82,6 +82,12 @@ class MLReturnPredictor:
                 **self.model_params
             }
             self.model = RandomForestRegressor(**params)
+        elif self.model_type == 'Lasso':
+            params = {'alpha': 0.1, **self.model_params}
+            self.model = Lasso(**params)
+        elif self.model_type == 'ENet':
+            params = {'alpha': 0.1, 'l1_ratio': 0.5, **self.model_params}
+            self.model = ElasticNet(**params) 
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
         
@@ -93,7 +99,7 @@ class MLReturnPredictor:
         
         print(f"✓ Training R²: {r2:.4f}")
         print(f"  Prediction spread: {y_pred.std():.4%}")
-    
+
     def predict_all_test_returns(self,
                                  feature_files):
         """
@@ -139,6 +145,19 @@ class MLReturnPredictor:
         self.model = data['model']
         self.model_type = data['model_type']
         print(f"✓ Model loaded from {path}")
+    
+    def calculate_AIC(self,
+                      y_pred, 
+                      y_actual,
+                      k):
+        """Calculate AIC for regression model"""
+        n = len(y_actual)
+        residual = y_actual - y_pred    
+        sse = np.sum(residual ** 2)
+
+        aic = n*np.log(sse/n) + 2*k
+        print(f"✓ AIC: {aic:.2f}")
+        return aic
 
 
 # Helper functions

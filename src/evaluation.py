@@ -47,7 +47,7 @@ class PerformanceEvaluator:
         excess_returns = returns - rf_aligned
         
         # Cumulative return
-        total_return = (portfolio_series.iloc[-1] / portfolio_series.iloc[0]) - 1
+        total_return = portfolio_series.iloc[-1] - 1
         
         # Annualized return
         n_years = len(portfolio_series) / ann_factor

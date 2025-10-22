@@ -182,9 +182,8 @@ class WalkForwardBacktest:
                     portfolio_value *= (1 - transaction_cost)
                     
                     turnover_history.append(turnover)
-                else:
-                    turnover_history.append(0.0)
-                
+
+
                 # Update to target weights
                 current_weights = target_weights.copy()
                 portfolio_weights_history.append((date, target_weights.copy()))
@@ -207,7 +206,7 @@ class WalkForwardBacktest:
         portfolio_series = pd.Series(portfolio_values, index=self.test_returns.index)
         
         print(f"Backtest complete. Final value: ${portfolio_series.iloc[-1]:.4f}")
-        
+
         results = {
             'strategy_name': strategy_name,
             'portfolio_values': portfolio_series,

@@ -5,7 +5,7 @@ class PortfolioOptimizer:
     Portfolio weight optimization methods
     """
     
-    def __init__(self, returns):
+    def __init__(self, returns: pd.DataFrame):
         """
         Args:
             returns: Historical returns for covariance estimation
@@ -123,6 +123,49 @@ class PortfolioOptimizer:
         
         return result.x
     
+    def target_return_maximization(self,
+                                 target_return: float,
+                                 max_position: float = 0.05) -> np.ndarray:
+        """
+        For a given target return, minimize portfolio variance
+        
+        Args:
+            target_return: Target expected return
+            max_position: Maximum weight per stock
+
+        Returns:
+            Optimal weights (n_stocks,)
+        """
+        self.cov_matrix = self.estimate_covariance(self.returns)
+        returns = self.returns.iloc[-1].values  # Use most recent returns as expected returns
+        def objective(w):
+            portfolio_variance = w @ self.cov_matrix @ w
+            return portfolio_variance
+
+        constraints = [
+            {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0},  # weights sum to 1
+            {'type': 'ineq', 'fun': lambda w: float(np.dot(w, returns) - target_return)}
+        ]
+
+        bounds = [(0, max_position) for _ in range(self.n_stocks)]
+
+        w0 = np.ones(self.n_stocks) / self.n_stocks
+
+        result = minimize(
+            objective,
+            w0,
+            method='SLSQP',
+            bounds=bounds,
+            constraints=constraints,
+            options={'maxiter': 1000, 'ftol': 1e-9}
+        )
+
+        if not result.success:
+            print(f"Warning: Optimization did not converge. Using equal weights.")
+            return w0
+
+        return result.x
+
     def load_pretrained_weights(self, filepath: str) -> np.ndarray:
         """
         Load pre-trained weights from a file
