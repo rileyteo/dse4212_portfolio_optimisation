@@ -1,4 +1,3 @@
-from fileinput import close
 from .imports import *
 
 class FeatureEngineer:
@@ -393,9 +392,7 @@ class FeatureEngineer:
                 if std > 0:
                     df[f'{col}_zscore'] = (df[col] - mean) / std
                 else:
-                    df[f'{col}_zscore'] = 0
-
-        
+                    df[f'{col}_zscore'] = 0  
         return df
     
     def compute_all_features_volatility_weekly(self, save_path: str = None) -> pd.DataFrame:
@@ -459,10 +456,6 @@ class FeatureEngineer:
             
             # Next week's OHLC data
             next_week_returns = self.returns.iloc[next_week_start_idx:next_week_end_idx]
-            next_week_high = self.high.iloc[next_week_start_idx:next_week_end_idx]
-            next_week_low = self.low.iloc[next_week_start_idx:next_week_end_idx]
-            next_week_close = self.close.iloc[next_week_start_idx:next_week_end_idx]
-            next_week_open = self.open.iloc[next_week_start_idx:next_week_end_idx]
             
             # Calculate target volatility for each stock
             target_vol = self._calculate_target_volatility(next_week_returns)
@@ -584,25 +577,3 @@ class FeatureEngineer:
                 realized_variances[i] = np.nan
         
         return pd.Series(realized_variances, index=returns_next_week.columns)
-        
-# def split_features(features_df: pd.DataFrame, 
-#                    train_years: int = 4):
-#     """
-#     Split features into train/test
-    
-#     Returns:
-#         features_train, features_test
-#     """
-#     dates = features_df.index.get_level_values('date').unique().sort_values()
-#     split_idx = min(252 * train_years, len(dates) - 1)
-#     split_date = dates[split_idx]
-    
-#     train = features_df.loc[features_df.index.get_level_values('date') < split_date]
-#     test = features_df.loc[features_df.index.get_level_values('date') >= split_date]
-    
-#     print(f"Train: {train.shape[0]:,} obs ({train.index.get_level_values('date').min().date()} to {train.index.get_level_values('date').max().date()})")
-#     print(f"Test:  {test.shape[0]:,} obs ({test.index.get_level_values('date').min().date()} to {test.index.get_level_values('date').max().date()})")
-    
-#     return train, test
-
-        
