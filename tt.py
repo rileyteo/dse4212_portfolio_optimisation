@@ -1,7 +1,7 @@
 import pandas as pd
 import pickle
 
-with open('features_demo.pkl', 'rb') as f:
+with open('src/data_weekly_var/2013-06-03.pkl', 'rb') as f:
     features = pickle.load(f)
-features = features.reset_index(drop=False)
-print(features.index)
+print(features.head())
+

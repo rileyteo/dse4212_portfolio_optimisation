@@ -1,3 +1,4 @@
+from numpy import std
 from .imports import *
 
 class PortfolioOptimizer:
@@ -37,7 +38,7 @@ class PortfolioOptimizer:
         """
         return np.ones(self.n_stocks) / self.n_stocks
     
-    def minimum_variance(self, max_position: float = 0.05):
+    def minimum_variance(self, max_position: float = 0.05) -> np.ndarray:
         """
         Minimum variance portfolio
         
@@ -77,8 +78,63 @@ class PortfolioOptimizer:
             return w0
         
         return result.x
-    
-    def mean_variance(self, predicted_returns: np.ndarray, 
+
+    def minimum_variance_from_cov(self, predicted_variance: pd.DataFrame, max_position: float = 0.05) -> np.ndarray:
+        """
+        Minimum variance portfolio from a precomputed covariance matrix
+
+        Args:
+            cov_matrix: Covariance matrix (n_stocks, n_stocks)
+            max_position: Maximum weight per stock (e.g., 0.05 = 5%)
+
+        Returns:
+            Optimal weights (n_stocks,)
+        """
+        lw = LedoitWolf()
+        cov_matrix = lw.fit(self.returns).covariance_
+        std_devs = np.sqrt(np.diag(cov_matrix))
+        std_devs[std_devs == 0] = 1e-6  # Prevent division by zero
+        corr_matrix = (cov_matrix + cov_matrix.T) / 2  # Ensure symmetry
+
+        predicted_vol = np.sqrt(predicted_variance.values)
+        cov_matrix = predicted_vol * corr_matrix * predicted_vol.T
+        cov_matrix = (cov_matrix + cov_matrix.T) / 2  # Ensure symmetry
+        eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
+        eigenvalues = np.maximum(eigenvalues, 1e-8)
+        cov_matrix = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+
+        self.cov_matrix = cov_matrix
+        def objective(w):
+            return 0.5 * w @ self.cov_matrix @ w
+        
+        # Constraints: weights sum to 1
+        constraints = [
+            {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}
+        ]
+        
+        # Bounds: long-only, max position size
+        bounds = [(0, max_position) for _ in range(self.n_stocks)]
+        
+        # Initial guess: equal weight
+        w0 = np.ones(self.n_stocks) / self.n_stocks
+        
+        # Optimize
+        result = minimize(
+            objective,
+            w0,
+            method='SLSQP',
+            bounds=bounds,
+            constraints=constraints,
+            options={'maxiter': 1000, 'ftol': 1e-9}
+        )
+        
+        if not result.success:
+            print(f"Warning: Optimization did not converge. Using equal weights.")
+            return w0
+        
+        return result.x
+
+    def mean_variance(self, predicted_returns: np.ndarray,
                      risk_aversion: float = 1.0,
                      max_position: float = 0.05) -> np.ndarray:
         """
