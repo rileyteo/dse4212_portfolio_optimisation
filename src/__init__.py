@@ -4,7 +4,7 @@ from .backtest import *
 from .evaluation import *
 from .portfolio_optimiser import *
 from .return_pred import *
-from .f_e import *
+from .feature_engineer import *
 from .ML_return_pred import *
 
 #to load the env folder
