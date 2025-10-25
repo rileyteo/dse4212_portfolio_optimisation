@@ -79,13 +79,13 @@ class FeatureEngineer:
             window_end = date_idx
             
             # Extract windows
-            returns_window = self.returns.iloc[window_start:window_end-1]
-            excess_returns_window = self.excess_returns.iloc[window_start:window_end-1]
-            close_window = self.close.iloc[window_start:window_end-1]
-            volume_window = self.volume.iloc[window_start:window_end-1]
-            high_window = self.high.iloc[window_start:window_end-1]
-            low_window = self.low.iloc[window_start:window_end-1]
-            
+            returns_window = self.returns.iloc[window_start:window_end]
+            excess_returns_window = self.excess_returns.iloc[window_start:window_end]
+            close_window = self.close.iloc[window_start:window_end]
+            volume_window = self.volume.iloc[window_start:window_end]
+            high_window = self.high.iloc[window_start:window_end]
+            low_window = self.low.iloc[window_start:window_end]
+
             # Compute features for this date
             date_features = self._compute_features_single_date(
                 returns_window, 
@@ -335,7 +335,15 @@ class FeatureEngineer:
             
             for lag in range(1, 21):
                 feat[f'ret_lag_{lag}d'] = ret[-lag] if len(ret) >= lag else 0
-            
+
+            # LAGGED RETURNS (for weekly predictions)
+            for lag in range(1, 5):
+                feat[f'ret_lag_{(lag-1)*5+1}-{lag*5+1}w'] = ret[-lag * 5-1:-(lag-1)*5-1].sum() if len(ret) >= lag * 5 else 0
+
+            # LAGGED RETURNS (for monthly predictions)
+            for lag in range(1, 3):
+                feat[f'ret_lag_{(lag-1)*21+1}-{lag*21+1}w'] = ret[-lag * 21-1:-(lag-1)*21-1].sum() if len(ret) >= lag * 21 else 0
+
             # ==========================================
             # VOLUME FEATURES
             # ==========================================
@@ -423,6 +431,16 @@ class FeatureEngineer:
         
         # Percentile ranks for momentum
         for col in ['ret_21d', 'ret_63d', 'excess_ret_21d']:
+            if col in df.columns:
+                df[f'{col}_pct'] = df[col].rank(pct=True)
+
+        # Percentile ranks for higher order lags
+        for col in [f'ret_lag_{(lag-1)*5+1}-{lag*5+1}w' for lag in range(1, 5)]:
+            if col in df.columns:
+                df[f'{col}_pct'] = df[col].rank(pct=True)
+
+
+        for col in [f'ret_lag_{(lag-1)*21+1}-{lag*21+1}w' for lag in range(1, 3)]:
             if col in df.columns:
                 df[f'{col}_pct'] = df[col].rank(pct=True)
         
@@ -515,7 +533,11 @@ class FeatureEngineer:
             'technical_short': [f'ret_lag_{i}d' for i in range(1, 6)],  # Lags 1-5
             'technical_medium': ['price_ma20', 'momentum_accel', 'range_position', 'rsi_14'],
             'technical_long': ['price_ma50', 'drawdown_21d'],
-            
+
+            # Higher order lags
+            'higher_order_lags_medium': [f'ret_lag_{(i-1)*5+1}-{i*5+1}w' for i in range(1, 5)],  # Weekly lags
+            'higher_order_lags_high': [f'ret_lag_{(i-1)*21+1}-{i*21+1}w' for i in range(1, 3)],  # Monthly lags
+
             # Volume features
             'volume': ['volume_ratio', 'volume_vol_21d'],
             
@@ -529,13 +551,27 @@ class FeatureEngineer:
             'tail': ['max_ret_21d', 'min_ret_21d', 'tail_ratio'],
             
             # Cross-sectional features
-            'cross_sectional': [
+            'cross_sectional_day': [
                 'ret_21d_pct', 'ret_63d_pct', 'excess_ret_21d_pct',
                 'vol_21d_pct', 'vol_5d_pct', 'vol_63d_pct',
                 'ret_21d_zscore', 'vol_21d_zscore',
                 'beta', 'beta_pct', 'corr_market',
                 'risk_adj_mom', 'risk_adj_mom_pct', 'mom_vol_interaction'
-            ]
+            ],
+
+            'cross_sectional_week': [
+                'vol_21d_pct', 'vol_5d_pct', 'vol_63d_pct',
+                'vol_21d_zscore',
+                'beta', 'beta_pct', 'corr_market',
+                'risk_adj_mom', 'risk_adj_mom_pct', 'mom_vol_interaction'
+            ] + [f'ret_lag_{(i-1)*5+1}-{i*5+1}w_pct' for i in range(1, 5)],
+
+            'cross_sectional_month': [
+                'vol_21d_pct', 'vol_63d_pct',
+                'vol_21d_zscore',
+                'beta', 'beta_pct', 'corr_market',
+                'risk_adj_mom', 'risk_adj_mom_pct', 'mom_vol_interaction'
+            ] + [f'ret_lag_{(i-1)*21+1}-{i*21+1}w_pct' for i in range(1, 3)],
         }
         
         # ==========================================
@@ -555,7 +591,7 @@ class FeatureEngineer:
                     'volume',              # Volume signals
                     'risk',                # Sharpe, skew, kurtosis
                     'liquidity',           # Illiquidity, spread
-                    'cross_sectional'      # Rankings, beta
+                    'cross_sectional_day'      # Rankings, beta
                 ],
                 'exclude': [],
                 'rationale': 'Daily: Use all high-frequency signals and microstructure'
@@ -563,30 +599,28 @@ class FeatureEngineer:
             
             ('return', 5): {  # Weekly returns
                 'pools': [
-                    'momentum_short',      # ret_5d still relevant
-                    'momentum_medium',     # ret_21d becomes important
                     'volatility_medium',   # 21d vol for risk
                     'technical_medium',    # MA, range position
                     'technical_long',      # Longer MA, drawdown
+                    'higher_order_lags_medium',  # Weekly lags
                     'volume',              # Volume signals
                     'risk',                # Risk metrics
                     'liquidity',           # Liquidity matters
-                    'cross_sectional'      # Rankings
+                    'cross_sectional_week'      # Rankings
                 ],
-                'exclude': ['ret_1d'] + [f'ret_lag_{i}d' for i in range(1, 6)],  # Drop daily lags
+                'exclude': ['ret_1d', 'mom_vol_interaction', 'volume_ratio', 'beta'] + [f'ret_lag_{i}d' for i in range(1, 6)],  # Drop daily lags
                 'rationale': 'Weekly: Drop daily noise, keep medium-term momentum'
             },
             
             ('return', 21): {  # Monthly returns
                 'pools': [
-                    'momentum_medium',     # ret_21d
-                    'momentum_long',       # ret_63d becomes key
                     'volatility_medium',   # 21d vol
                     'volatility_long',     # 63d vol
                     'technical_long',      # Long-term technical
+                    'higher_order_lags_high',  # Monthly lags
                     'volume',              # Volume
                     'risk',                # Risk metrics
-                    'cross_sectional'      # Rankings
+                    'cross_sectional_month'      # Rankings
                 ],
                 'exclude': ['vol_5d_pct', 'rv_5d'] +
                         [f'ret_lag_{i}d' for i in range(1, 21)],  # Drop all short-term
@@ -604,7 +638,7 @@ class FeatureEngineer:
                     'risk',                # Skew, kurtosis
                     'tail',                # Jump indicators
                     'liquidity',           # Liquidity affects vol
-                    'cross_sectional'      # Rankings
+                    'cross_sectional_week'      # Rankings
                 ],
                 'exclude': ['ret_21_d', 'excess_ret_21d', 'ret_63d', 'excess_ret_63d', 'ret_21d_zscore'] ,  # Drop return features
                 'rationale': 'Weekly vol: Use recent variance measures and tail risk'
@@ -619,7 +653,7 @@ class FeatureEngineer:
                     'risk',                # Higher moments
                     'tail',                # Tail risk
                     'liquidity',           # Liquidity
-                    'cross_sectional'      # Rankings
+                    'cross_sectional_month'      # Rankings
                 ],
                 'exclude': ['vol_5d', 'rv_5d', 'rv_ratio_5_21', 'rv_ratio_5_63'] + ['ret_21_d', 'excess_ret_21d', 'ret_63d', 'excess_ret_63d', 'ret_21d_zscore'],  # Drop short-term
                 'rationale': 'Monthly vol: Focus on longer-term variance persistence'

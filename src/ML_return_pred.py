@@ -6,7 +6,7 @@ class MLReturnPredictor:
     def __init__(self, model_type: str = 'ridge', **model_params):
         """
         Args:
-            model_type: 'ridge' or 'random_forest' or 'Lasso' or 'ENet' or 'XGB'
+            model_type: 'Ridge' or 'RF' or 'Lasso' or 'ENet' or 'XGB'
             **model_params: Model hyperparameters
         """
         self.model_type = model_type
@@ -15,6 +15,7 @@ class MLReturnPredictor:
     
     def create_training_dataset(self,
                                feature_files,
+                               data_source,
                                returns_df: pd.DataFrame):
         """
         Create training dataset from feature files and returns
@@ -36,7 +37,7 @@ class MLReturnPredictor:
             feature_date = pd.to_datetime(feature_file.replace(".pkl", ""))
             
             # Load features
-            with open("src/data/"+feature_file, 'rb') as f:
+            with open(f"src/data_{data_source}/{feature_file}", 'rb') as f:
                 features_df = pickle.load(f)
             
             # Get target returns (1-day ahead)
@@ -70,10 +71,10 @@ class MLReturnPredictor:
         """
         print(f"Training {self.model_type} model...")
         
-        if self.model_type == 'ridge':
+        if self.model_type == 'Ridge':
             params = {'alpha': 1.0, **self.model_params}
             self.model = Ridge(**params)
-        elif self.model_type == 'random_forest':
+        elif self.model_type == 'RF':
             params = {
                 'n_estimators': 100,
                 'max_depth': 10,
@@ -104,7 +105,9 @@ class MLReturnPredictor:
         print(f"  Prediction spread: {y_pred.std():.4%}")
 
     def predict_all_test_returns(self,
-                                 feature_files):
+                                 feature_files,
+                                 data_source,
+                                 scaler: StandardScaler = None):
         """
         Predict returns for all test dates
         
@@ -124,10 +127,13 @@ class MLReturnPredictor:
             pred_date = pd.to_datetime(date_str)
             
             # Load and predict
-            with open("src/data/"+feature_file, 'rb') as f:
+            with open(f"src/data_{data_source}/{feature_file}", 'rb') as f:
                 features_df = pickle.load(f)
             
-            predictions = self.model.predict(features_df.values)
+            scaled_features = features_df.values
+            if scaler is not None:
+                scaled_features = scaler.transform(scaled_features)
+            predictions = self.model.predict(scaled_features)
             predictions_dict[pred_date] = pd.Series(predictions, index=features_df.index)
         
         predicted_returns_df = pd.DataFrame(predictions_dict).T

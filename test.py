@@ -25,23 +25,32 @@ def func5():
     features, df = engineer.compute_weekly_volatility_features('src/data_weekly_var/')
     print(f"Weekly vol: {features.shape}, targets: {df.shape}")
 
+def func6():
+    features, df = engineer.compute_daily_return_features('src/data_daily_ret/')
+    print(f"Daily ret: {features.shape}, targets: {df.shape}")
+
 if __name__ == '__main__':  # IMPORTANT: Protect entry point
     # Create processes
     p1 = Process(target=func1)
     p3 = Process(target=func3)
     p4 = Process(target=func4)
     p5 = Process(target=func5)
+    p6 = Process(target=func6)
     
     # Start all
     p1.start()
     p3.start()
     p4.start()
     p5.start()
+    p6.start()
     
     # Wait for completion
     p1.join()
     p3.join()
     p4.join()
     p5.join()
+    p6.join()
+
+    features, df = engineer.compute_daily_return_features('src/data_daily_vol/')
     
     print("✓ All feature engineering complete!")
