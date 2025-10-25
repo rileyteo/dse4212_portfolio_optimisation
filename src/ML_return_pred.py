@@ -6,7 +6,7 @@ class MLReturnPredictor:
     def __init__(self, model_type: str = 'ridge', **model_params):
         """
         Args:
-            model_type: 'ridge' or 'random_forest' or 'Lasso' or 'ENet'
+            model_type: 'ridge' or 'random_forest' or 'Lasso' or 'ENet' or 'XGB'
             **model_params: Model hyperparameters
         """
         self.model_type = model_type
@@ -88,6 +88,9 @@ class MLReturnPredictor:
         elif self.model_type == 'ENet':
             params = {'alpha': 0.1, 'l1_ratio': 0.5, **self.model_params}
             self.model = ElasticNet(**params) 
+        elif self.model_type == 'XGB':
+            params = {'n_estimators': 100, 'max_depth': 6, 'learning_rate': 0.1, **self.model_params}
+            self.model = XGBRegressor(**params)
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
         
@@ -145,20 +148,6 @@ class MLReturnPredictor:
         self.model = data['model']
         self.model_type = data['model_type']
         print(f"✓ Model loaded from {path}")
-    
-    def calculate_AIC(self,
-                      y_pred, 
-                      y_actual,
-                      k):
-        """Calculate AIC for regression model"""
-        n = len(y_actual)
-        residual = y_actual - y_pred    
-        sse = np.sum(residual ** 2)
-
-        aic = n*np.log(sse/n) + 2*k
-        print(f"✓ AIC: {aic:.2f}")
-        return aic
-
 
 # Helper functions
 def get_feature_files(feature_dir: str):
@@ -172,31 +161,3 @@ def split_feature_files(feature_files,
     """Split into train/test sets"""
     split_idx = min(252 * train_years, len(feature_files) - 1)
     return feature_files[:split_idx], feature_files[split_idx:]
-
-
-# if __name__ == "__main__":
-    
-#     # 1. Get feature files
-#     all_files = get_feature_files('results/features/')
-#     train_files, test_files = split_feature_files(all_files, train_years=4)
-    
-#     # 2. Load returns
-#     with open('results/returns.pkl', 'rb') as f:
-#         returns_df = pickle.load(f)
-    
-#     # 3. Create dataset and train
-#     predictor = MLReturnPredictor(model_type='ridge', alpha=1.0)
-#     X_train, y_train = predictor.create_training_dataset(train_files, returns_df)
-#     predictor.train(X_train, y_train)
-    
-#     # 4. Save model
-#     predictor.save_model('results/model_ridge.pkl')
-    
-#     # 5. Predict test returns
-#     predicted_returns_df = predictor.predict_all_test_returns(test_files)
-    
-#     # 6. Save predictions
-#     with open('results/predicted_returns_test.pkl', 'wb') as f:
-#         pickle.dump(predicted_returns_df, f)
-    
-#     print("\n✓ Complete! Ready for backtesting.")

@@ -79,12 +79,12 @@ class FeatureEngineer:
             window_end = date_idx
             
             # Extract windows
-            returns_window = self.returns.iloc[window_start:window_end]
-            excess_returns_window = self.excess_returns.iloc[window_start:window_end]
-            close_window = self.close.iloc[window_start:window_end]
-            volume_window = self.volume.iloc[window_start:window_end]
-            high_window = self.high.iloc[window_start:window_end]
-            low_window = self.low.iloc[window_start:window_end]
+            returns_window = self.returns.iloc[window_start:window_end-1]
+            excess_returns_window = self.excess_returns.iloc[window_start:window_end-1]
+            close_window = self.close.iloc[window_start:window_end-1]
+            volume_window = self.volume.iloc[window_start:window_end-1]
+            high_window = self.high.iloc[window_start:window_end-1]
+            low_window = self.low.iloc[window_start:window_end-1]
             
             # Compute features for this date
             date_features = self._compute_features_single_date(
@@ -109,7 +109,7 @@ class FeatureEngineer:
         
             # Compute target
             if target == 'return':
-                future_returns = self.returns.iloc[date_idx : date_idx+1+horizon_days]
+                future_returns = self.returns.iloc[date_idx+1 : date_idx+1+horizon_days]
                 targets = future_returns.sum(axis=0)  # Sum across days
             else:
                 future_returns = self.returns.iloc[date_idx+1 : date_idx+1+horizon_days]
@@ -118,6 +118,7 @@ class FeatureEngineer:
             targets_dict[date] = targets
         
         targets_dict = pd.DataFrame(targets_dict).T
+        targets_dict.sort_index(inplace=True)
 
         if save_path:
             if not targets_dict.isna().values.any():
