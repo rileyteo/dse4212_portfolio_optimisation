@@ -94,7 +94,8 @@ class PortfolioOptimizer:
         cov_matrix = lw.fit(self.returns).covariance_
         std_devs = np.sqrt(np.diag(cov_matrix))
         std_devs[std_devs == 0] = 1e-6  # Prevent division by zero
-        corr_matrix = (cov_matrix + cov_matrix.T) / 2  # Ensure symmetry
+        corr_matrix = cov_matrix / np.outer(std_devs, std_devs)
+        corr_matrix = (corr_matrix + corr_matrix.T) / 2  # Ensure symmetry
 
         predicted_vol = np.sqrt(predicted_variance.values)
         cov_matrix = predicted_vol * corr_matrix * predicted_vol.T
@@ -102,8 +103,8 @@ class PortfolioOptimizer:
         eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
         eigenvalues = np.maximum(eigenvalues, 1e-8)
         cov_matrix = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
-
         self.cov_matrix = cov_matrix
+        
         def objective(w):
             return 0.5 * w @ self.cov_matrix @ w
         
