@@ -223,17 +223,54 @@ class PortfolioOptimizer:
 
         return result.x
 
-    def load_pretrained_weights(self, filepath: str) -> np.ndarray:
+    def max_sharpe_ratio(self, predicted_returns: np.ndarray,
+                     risk_free_rate: float = 0.0,
+                     max_position: float = 0.05) -> np.ndarray:
         """
-        Load pre-trained weights from a file
+        Maximize Sharpe ratio optimization
+        
+        max: (w^T * mu - rf) / sqrt(w^T * Sigma * w)
         
         Args:
-            filepath: Path to the file containing weights (e.g., .npy file)
+            predicted_returns: Expected returns (n_stocks,)
+            risk_free_rate: Risk-free rate (annualized, matching return frequency)
+            max_position: Maximum weight per stock
         
         Returns:
-            Weights array (n_stocks,)
+            Optimal weights (n_stocks,)
         """
-        weights = np.load(filepath)
-        if weights.shape[0] != self.n_stocks:
-            raise ValueError(f"Loaded weights shape {weights.shape} does not match number of stocks {self.n_stocks}.")
-        return weights / np.sum(weights)  # Normalize to sum to 1
+        self.cov_matrix = self.estimate_covariance(self.returns)
+        
+        def negative_sharpe(w):
+            portfolio_return = w @ predicted_returns
+            portfolio_std = np.sqrt(w @ self.cov_matrix @ w)
+            
+            # Avoid division by zero
+            if portfolio_std < 1e-10:
+                return 1e10
+            
+            sharpe_ratio = (portfolio_return - risk_free_rate) / portfolio_std
+            return -sharpe_ratio  # Negative because we're minimizing
+        
+        constraints = [
+            {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}
+        ]
+        
+        bounds = [(0, max_position) for _ in range(self.n_stocks)]
+        
+        w0 = np.ones(self.n_stocks) / self.n_stocks
+        
+        result = minimize(
+            negative_sharpe,
+            w0,
+            method='SLSQP',
+            bounds=bounds,
+            constraints=constraints,
+            options={'maxiter': 1000, 'ftol': 1e-9}
+        )
+        
+        if not result.success:
+            print(f"Warning: Optimization did not converge. Using equal weights.")
+            return w0
+        
+        return result.x
