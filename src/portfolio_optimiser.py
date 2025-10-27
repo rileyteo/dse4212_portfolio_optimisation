@@ -240,6 +240,7 @@ class PortfolioOptimizer:
             Optimal weights (n_stocks,)
         """
         self.cov_matrix = self.estimate_covariance(self.returns)
+        predicted_returns = predicted_returns.values.flatten()
         
         def negative_sharpe(w):
             portfolio_return = w @ predicted_returns
