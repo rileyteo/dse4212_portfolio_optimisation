@@ -225,7 +225,7 @@ class PortfolioOptimizer:
 
     def max_sharpe_ratio(self, predicted_returns: np.ndarray,
                      risk_free_rate: float = 0.0,
-                     max_position: float = 0.05) -> np.ndarray:
+                     max_position: float = 0.05, predicted_variance: pd.DataFrame = None) -> np.ndarray:
         """
         Maximize Sharpe ratio optimization
         
@@ -239,7 +239,22 @@ class PortfolioOptimizer:
         Returns:
             Optimal weights (n_stocks,)
         """
-        self.cov_matrix = self.estimate_covariance(self.returns)
+        if predicted_variance is not None:
+            self.cov_matrix = self.estimate_covariance(self.returns)
+            std_devs = np.sqrt(np.diag(self.cov_matrix))
+            std_devs[std_devs == 0] = 1e-6  # Prevent division by zero
+            corr_matrix = self.cov_matrix / np.outer(std_devs, std_devs)
+            corr_matrix = (corr_matrix + corr_matrix.T) / 2  # Ensure symmetry
+
+            predicted_vol = np.sqrt(predicted_variance.values)
+            cov_matrix = predicted_vol * corr_matrix * predicted_vol.T
+            cov_matrix = (cov_matrix + cov_matrix.T) / 2  # Ensure symmetry
+            eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
+            eigenvalues = np.maximum(eigenvalues, 1e-8)
+            cov_matrix = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+            self.cov_matrix = cov_matrix
+        else:
+            self.cov_matrix = self.estimate_covariance(self.returns)
         predicted_returns = predicted_returns.values.flatten()
         
         def negative_sharpe(w):
