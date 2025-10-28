@@ -137,7 +137,8 @@ class PortfolioOptimizer:
 
     def mean_variance(self, predicted_returns: np.ndarray,
                      risk_aversion: float = 1.0,
-                     max_position: float = 0.05) -> np.ndarray:
+                     max_position: float = 0.05,
+                     predicted_variance: pd.DataFrame = None) -> np.ndarray:
         """
         Mean-variance optimization
         
@@ -151,7 +152,23 @@ class PortfolioOptimizer:
         Returns:
             Optimal weights (n_stocks,)
         """
-        self.cov_matrix = self.estimate_covariance(self.returns)
+        if predicted_variance is not None:
+            self.cov_matrix = self.estimate_covariance(self.returns)
+            std_devs = np.sqrt(np.diag(self.cov_matrix))
+            std_devs[std_devs == 0] = 1e-6  # Prevent division by zero
+            corr_matrix = self.cov_matrix / np.outer(std_devs, std_devs)
+            corr_matrix = (corr_matrix + corr_matrix.T) / 2  # Ensure symmetry
+
+            predicted_vol = np.sqrt(predicted_variance)
+            cov_matrix = predicted_vol * corr_matrix * predicted_vol.T
+            cov_matrix = (cov_matrix + cov_matrix.T) / 2  # Ensure symmetry
+            eigenvalues, eigenvectors = np.linalg.eigh(corr_matrix)
+            eigenvalues = np.maximum(eigenvalues, 1e-8)
+            cov_matrix = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.T
+            self.cov_matrix = cov_matrix
+        else:
+            self.cov_matrix = self.estimate_covariance(self.returns)
+        predicted_returns = predicted_returns.values.flatten()
         def objective(w):
             portfolio_return = w @ predicted_returns
             portfolio_variance = w @ self.cov_matrix @ w
@@ -180,48 +197,6 @@ class PortfolioOptimizer:
         
         return result.x
     
-    def target_return_maximization(self,
-                                 target_return: float,
-                                 max_position: float = 0.05) -> np.ndarray:
-        """
-        For a given target return, minimize portfolio variance
-        
-        Args:
-            target_return: Target expected return
-            max_position: Maximum weight per stock
-
-        Returns:
-            Optimal weights (n_stocks,)
-        """
-        self.cov_matrix = self.estimate_covariance(self.returns)
-        returns = self.returns.iloc[-1].values  # Use most recent returns as expected returns
-        def objective(w):
-            portfolio_variance = w @ self.cov_matrix @ w
-            return portfolio_variance
-
-        constraints = [
-            {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0},  # weights sum to 1
-            {'type': 'ineq', 'fun': lambda w: float(np.dot(w, returns) - target_return)}
-        ]
-
-        bounds = [(0, max_position) for _ in range(self.n_stocks)]
-
-        w0 = np.ones(self.n_stocks) / self.n_stocks
-
-        result = minimize(
-            objective,
-            w0,
-            method='SLSQP',
-            bounds=bounds,
-            constraints=constraints,
-            options={'maxiter': 1000, 'ftol': 1e-9}
-        )
-
-        if not result.success:
-            print(f"Warning: Optimization did not converge. Using equal weights.")
-            return w0
-
-        return result.x
 
     def max_sharpe_ratio(self, predicted_returns: np.ndarray,
                      risk_free_rate: float = 0.0,

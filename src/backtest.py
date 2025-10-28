@@ -6,7 +6,7 @@ class WalkForwardBacktest:
     """
     
     def __init__(self, 
-                 train_returns: pd.DataFrame,
+                #  train_returns: pd.DataFrame,
                  test_returns: pd.DataFrame,
                 #  test_prices: pd.DataFrame,
                  rf_rate_test: pd.Series,
@@ -19,7 +19,7 @@ class WalkForwardBacktest:
             rf_rate_test: Risk-free rate for test period
             rebalance_freq: 'D' (daily), 'W' (weekly), 'M' (monthly)
         """
-        self.train_returns = train_returns
+        # self.train_returns = train_returns
         self.test_returns = test_returns
         # self.test_prices = test_prices
         self.rf_rate_test = rf_rate_test
@@ -44,90 +44,90 @@ class WalkForwardBacktest:
         else:
             raise ValueError(f"Unknown rebalance frequency: {self.rebalance_freq}")
     
-    def run_backtest(self,
-                    strategy_name: str,
-                    get_weights_func,
-                    transaction_cost_bps: float = 10.0):
-        """
-        Run walk-forward backtest for a strategy
+    # def run_backtest(self,
+    #                 strategy_name: str,
+    #                 get_weights_func,
+    #                 transaction_cost_bps: float = 10.0):
+    #     """
+    #     Run walk-forward backtest for a strategy
         
-        Args:
-            strategy_name: Name of the strategy
-            get_weights_func: Function that returns portfolio weights
-                             Signature: get_weights_func(train_returns) -> np.ndarray
-            transaction_cost_bps: Transaction cost in basis points (10 = 0.1%)
+    #     Args:
+    #         strategy_name: Name of the strategy
+    #         get_weights_func: Function that returns portfolio weights
+    #                          Signature: get_weights_func(train_returns) -> np.ndarray
+    #         transaction_cost_bps: Transaction cost in basis points (10 = 0.1%)
         
-        Returns:
-            Dictionary with backtest results
-        """
-        print(f"\nRunning backtest: {strategy_name}")
-        print(f"Rebalancing frequency: {self.rebalance_freq}")
-        print(f"Rebalancing dates: {len(self.rebalance_dates)}")
+    #     Returns:
+    #         Dictionary with backtest results
+    #     """
+    #     print(f"\nRunning backtest: {strategy_name}")
+    #     print(f"Rebalancing frequency: {self.rebalance_freq}")
+    #     print(f"Rebalancing dates: {len(self.rebalance_dates)}")
         
-        # Initialize tracking
-        portfolio_values = [1.0]  # Start with $1
-        portfolio_weights_history = []
-        turnover_history = []
-        dates_history = [self.test_returns.index[0]]
+    #     # Initialize tracking
+    #     portfolio_values = [1.0]  # Start with $1
+    #     portfolio_weights_history = []
+    #     turnover_history = []
+    #     dates_history = [self.test_returns.index[0]]
         
-        # Current weights (start with equal weight or first rebalance weights)
-        current_weights = None
+    #     # Current weights (start with equal weight or first rebalance weights)
+    #     current_weights = None
         
-        # Iterate through test period
-        for i, date in enumerate(self.test_returns.index):
+    #     # Iterate through test period
+    #     for i, date in enumerate(self.test_returns.index):
             
-            # Check if we should rebalance
-            if date in self.rebalance_dates:
-                # Get new target weights
-                target_weights = get_weights_func(self.train_returns.loc[:date])
-                # target_weights = get_weights_func(pd.concat([self.train_returns, self.test_returns.iloc[:i]]))
+    #         # Check if we should rebalance
+    #         if date in self.rebalance_dates:
+    #             # Get new target weights
+    #             target_weights = get_weights_func(self.train_returns.loc[:date])
+    #             # target_weights = get_weights_func(pd.concat([self.train_returns, self.test_returns.iloc[:i]]))
                 
-                # Calculate turnover if not first rebalance
-                if current_weights is not None:
-                    # Weights after market movement (before rebalancing)
-                    # If yesterday's weights were w, and returns were r,
-                    # today's pre-rebalance weights are w * (1+r) / sum(w * (1+r))
-                    turnover = np.abs(target_weights-current_weights).sum()
+    #             # Calculate turnover if not first rebalance
+    #             if current_weights is not None:
+    #                 # Weights after market movement (before rebalancing)
+    #                 # If yesterday's weights were w, and returns were r,
+    #                 # today's pre-rebalance weights are w * (1+r) / sum(w * (1+r))
+    #                 turnover = np.abs(target_weights-current_weights).sum()
                     
-                    # Apply transaction costs
-                    transaction_cost = turnover * (transaction_cost_bps / 10000)
-                    portfolio_values[-1] *= (1 - transaction_cost)
-                else:
-                    turnover = 0
-                    transaction_cost = 0
+    #                 # Apply transaction costs
+    #                 transaction_cost = turnover * (transaction_cost_bps / 10000)
+    #                 portfolio_values[-1] *= (1 - transaction_cost)
+    #             else:
+    #                 turnover = 0
+    #                 transaction_cost = 0
                 
-                turnover_history.append(turnover)
-                current_weights = target_weights
-                portfolio_weights_history.append((date, target_weights.copy()))
+    #             turnover_history.append(turnover)
+    #             current_weights = target_weights
+    #             portfolio_weights_history.append((date, target_weights.copy()))
             
-            # Calculate portfolio return for today
-            if current_weights is not None:
-                daily_returns = self.test_returns.iloc[i].values
-                portfolio_return = np.dot(current_weights, daily_returns)
+    #         # Calculate portfolio return for today
+    #         if current_weights is not None:
+    #             daily_returns = self.test_returns.iloc[i].values
+    #             portfolio_return = np.dot(current_weights, daily_returns)
                 
-                # Update portfolio value
-                new_value = portfolio_values[-1] * (1 + portfolio_return)
-                portfolio_values.append(new_value)
-                dates_history.append(date)
+    #             # Update portfolio value
+    #             new_value = portfolio_values[-1] * (1 + portfolio_return)
+    #             portfolio_values.append(new_value)
+    #             dates_history.append(date)
                 
-                # Update weights based on market movement (drift)
-                current_weights = current_weights * (1 + daily_returns)
-                current_weights = current_weights / current_weights.sum()
-            print(i)
+    #             # Update weights based on market movement (drift)
+    #             current_weights = current_weights * (1 + daily_returns)
+    #             current_weights = current_weights / current_weights.sum()
+    #         print(i)
         
-        # Calculate results
-        portfolio_series = pd.Series(portfolio_values[1:], index=dates_history[1:])
+    #     # Calculate results
+    #     portfolio_series = pd.Series(portfolio_values[1:], index=dates_history[1:])
         
-        results = {
-            'strategy_name': strategy_name,
-            'portfolio_values': portfolio_series,
-            'weights_history': portfolio_weights_history,
-            'turnover_history': turnover_history,
-            'rebalance_dates': self.rebalance_dates,
-            'transaction_cost_bps': transaction_cost_bps
-        }
+    #     results = {
+    #         'strategy_name': strategy_name,
+    #         'portfolio_values': portfolio_series,
+    #         'weights_history': portfolio_weights_history,
+    #         'turnover_history': turnover_history,
+    #         'rebalance_dates': self.rebalance_dates,
+    #         'transaction_cost_bps': transaction_cost_bps
+    #     }
         
-        return results
+    #     return results
 
     def run_backtest_preloaded_weights(self,
                                    strategy_name: str,
